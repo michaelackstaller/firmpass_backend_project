@@ -1,7 +1,9 @@
 package de.acksmi.firmapp.firmpass_backend_project.controller;
 
+import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
 import de.acksmi.firmapp.firmpass_backend_project.model.User;
 import de.acksmi.firmapp.firmpass_backend_project.security.JwtTokenProvider;
+import de.acksmi.firmapp.firmpass_backend_project.service.FirmlingService;
 import de.acksmi.firmapp.firmpass_backend_project.service.UserService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -16,34 +18,62 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Random;
 
 @RestController
 @RequestMapping("/auth")
+@CrossOrigin(origins = "http://localhost:63343") // Fügen Sie dies hinzu, um CORS für diesen Controller zu ermöglichen
 public class AuthController {
 
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private FirmlingService firmlingService;
+
     private final AuthenticationManager authenticationManager;
 
     private final JwtTokenProvider jwtTokenProvider;
 
+    private final PasswordEncoder passwordEncoder;
+
     @Autowired
-    public AuthController(AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider) {
+    public AuthController(AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider, PasswordEncoder passwordEncoder) {
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Value("${app.jwtSecret}")
     private String jwtSecret;
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody User user) {
-        if (userService.findByUsername(user.getUsername()) != null) {
-            return ResponseEntity.badRequest().body("Username is already taken");
+    public ResponseEntity<?> registerUser(@RequestBody Firmling firmling) {
+        String baseUsername = firmling.getFirstName().toLowerCase() + "." + firmling.getLastName().toLowerCase();
+        String username = generateUniqueUsername(baseUsername);
+
+        User user = new User();
+        user.setUsername(username);
+        user.setPassword(passwordEncoder.encode("thomaslorenz")); // Set standard password and encode it
+        user.setIsLocked(false);
+
+        User savedUser = userService.saveUser(user);
+        firmling.setUser(savedUser);
+        firmlingService.saveFirmling(firmling);
+
+        return ResponseEntity.ok(savedUser);
+    }
+
+    private String generateUniqueUsername(String baseUsername) {
+        String username = baseUsername;
+        Random random = new Random();
+        while (userService.findByUsername(username) != null) {
+            username = baseUsername + random.nextInt(1000); // Append a random number to make it unique
         }
-        return ResponseEntity.ok(userService.saveUser(user));
+        return username;
     }
 
     @PostMapping("/login")
