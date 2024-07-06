@@ -14,7 +14,7 @@ public class WebConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:63343") // Ersetzen Sie dies durch die genaue URL Ihres Frontends
+                        .allowedOrigins("https://localhost:63343", "https://acksmi.de:32774", "https://localhost:32774", "https://firmstart.acksmi.de", "https//firmstart.acksmi.de") // Ersetzen Sie dies durch die genaue URL Ihres Frontends
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);

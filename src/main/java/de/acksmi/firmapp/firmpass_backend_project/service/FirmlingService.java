@@ -2,12 +2,10 @@ package de.acksmi.firmapp.firmpass_backend_project.service;
 
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
 import de.acksmi.firmapp.firmpass_backend_project.model.FirmlingDTO;
-import de.acksmi.firmapp.firmpass_backend_project.model.TimeSlot;
 import de.acksmi.firmapp.firmpass_backend_project.repository.FirmlingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,7 +26,7 @@ public class FirmlingService {
     public List<FirmlingDTO> findAllFirmlinge() {
         List<Firmling> firmlinge = firmlingRepository.findAll();
         return firmlinge.stream()
-                .map(f -> new FirmlingDTO(f.getFirstName(), f.getLastName(), f.getGroupPreferences()))
+                .map(f -> new FirmlingDTO(f.getFirstName(), f.getLastName(), f.getGroupPreferences(), f.getAvailableTimeSlots()))
                 .collect(Collectors.toList());
     }
 }
