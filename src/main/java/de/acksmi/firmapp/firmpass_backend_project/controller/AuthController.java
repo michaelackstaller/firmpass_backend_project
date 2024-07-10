@@ -1,7 +1,6 @@
 package de.acksmi.firmapp.firmpass_backend_project.controller;
 
-import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
-import de.acksmi.firmapp.firmpass_backend_project.model.User;
+import de.acksmi.firmapp.firmpass_backend_project.model.*;
 import de.acksmi.firmapp.firmpass_backend_project.security.JwtTokenProvider;
 import de.acksmi.firmapp.firmpass_backend_project.service.FirmlingService;
 import de.acksmi.firmapp.firmpass_backend_project.service.UserService;
@@ -21,11 +20,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Random;
 
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin(origins = "http://localhost:63343") // Fügen Sie dies hinzu, um CORS für diesen Controller zu ermöglichen
+@CrossOrigin(origins = {"http://localhost:63343", "https://acksmi.de:32774", "http://localhost:32774", "https://firmstart.acksmi.de", "https://cloud.acksmi.de"})
 public class AuthController {
 
     @Autowired
@@ -57,11 +57,15 @@ public class AuthController {
 
         User user = new User();
         user.setUsername(username);
-        user.setPassword(passwordEncoder.encode("thomaslorenz")); // Set standard password and encode it
+        user.setPassword("thomaslorenz"); // Set standard password and encode it
         user.setIsLocked(false);
 
-        User savedUser = userService.saveUser(user);
+        User savedUser = userService.saveNewUser(user);
         firmling.setUser(savedUser);
+
+        //TODO: Löschen weil Test!
+        firmling.setFirmgruppe(Firmgruppe.MONTAG);
+
         firmlingService.saveFirmling(firmling);
 
         return ResponseEntity.ok(savedUser);
@@ -76,13 +80,40 @@ public class AuthController {
         return username;
     }
 
+    @PostMapping("/validateToken")
+    public ResponseEntity<?> validateToken(@RequestBody TokenRequest tokenRequest) {
+        System.out.println("TOKENREQUEST " + tokenRequest.getToken());
+        System.out.println("TOKEN " + tokenRequest.getToken());
+        try {
+            boolean isValid = jwtTokenProvider.validateJwtToken(tokenRequest.getToken());
+            if (isValid) {
+                return ResponseEntity.ok("Token is valid " + jwtTokenProvider.getUserNameFromJwtToken(tokenRequest.getToken()));
+            } else {
+                return ResponseEntity.status(401).body("Token is invalid");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body("Token validation failed: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/secure-user")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<String> getSecureData() {
+        String responseData = "You are user";
+        return ResponseEntity.ok(responseData);
+    }
+
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@RequestBody User user) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword()));
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtTokenProvider.generateJwtToken(authentication);
-        return ResponseEntity.ok(jwt);
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = jwtTokenProvider.generateJwtToken(authentication);
+            return ResponseEntity.ok(jwt);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body("Login failed: " + e.getMessage());
+        }
     }
 
     @GetMapping("/public")
@@ -91,9 +122,12 @@ public class AuthController {
 
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);
+            if(!jwtTokenProvider.validateJwtToken(token)) {
+                return ResponseEntity.status(401).body("Invalid Token");
+            }
             try {
                 Claims claims = Jwts.parserBuilder()
-                        .setSigningKey(jwtSecret.getBytes())
+                        .setSigningKey(jwtSecret.getBytes(StandardCharsets.UTF_8))
                         .build()
                         .parseClaimsJws(token)
                         .getBody();

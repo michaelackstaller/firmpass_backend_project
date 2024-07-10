@@ -1,19 +1,24 @@
 package de.acksmi.firmapp.firmpass_backend_project.security;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
+import io.jsonwebtoken.security.WeakKeyException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Component
 public class JwtTokenProvider {
+
+    private static final Logger logger = Logger.getLogger(JwtTokenProvider.class.getName());
 
     @Value("${app.jwtSecret}")
     private String jwtSecret;
@@ -22,7 +27,15 @@ public class JwtTokenProvider {
     private int jwtExpirationMs;
 
     private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        try {
+            return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        } catch (WeakKeyException e) {
+            logger.log(Level.SEVERE, "JWT secret key is too weak.", e);
+            throw e;
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error creating signing key.", e);
+            throw new RuntimeException("Error creating signing key", e);
+        }
     }
 
     public String generateJwtToken(Authentication authentication) {
@@ -46,11 +59,20 @@ public class JwtTokenProvider {
 
     public boolean validateJwtToken(String authToken) {
         try {
-            Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(authToken);
+            Jwts.parserBuilder().setSigningKey(Keys.hmacShaKeyFor(jwtSecret.getBytes())).build().parseClaimsJws(authToken);
             return true;
-        } catch (Exception e) {
-            // Log the error
+        } catch (SignatureException ex) {
+            System.out.println("Invalid JWT signature");
+        } catch (MalformedJwtException ex) {
+            System.out.println("Invalid JWT token");
+        } catch (ExpiredJwtException ex) {
+            System.out.println("Expired JWT token");
+        } catch (UnsupportedJwtException ex) {
+            System.out.println("Unsupported JWT token");
+        } catch (IllegalArgumentException ex) {
+            System.out.println("JWT claims string is empty.");
         }
         return false;
     }
+
 }
