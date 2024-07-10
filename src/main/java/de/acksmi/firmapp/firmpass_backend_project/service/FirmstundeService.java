@@ -1,6 +1,9 @@
 package de.acksmi.firmapp.firmpass_backend_project.service;
 
+import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
+import de.acksmi.firmapp.firmpass_backend_project.model.Firmsonntag;
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmstunde;
+import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmsonntag;
 import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmstunde;
 import de.acksmi.firmapp.firmpass_backend_project.repository.FirmstundeRepository;
 import de.acksmi.firmapp.firmpass_backend_project.repository.FirmlingFirmstundeRepository;
@@ -26,10 +29,23 @@ public class FirmstundeService {
         return firmstundeRepository.save(firmstunde);
     }
 
-    public FirmlingFirmstunde markAsCompleted(Long firmlingId, Long firmstundeId) {
-        FirmlingFirmstunde firmlingFirmstunde = firmlingFirmstundeRepository.findById(firmstundeId)
-                .orElseThrow(() -> new RuntimeException("Firmstunde not found"));
-        firmlingFirmstunde.setCompleted(true);
+    public FirmlingFirmstunde markAsCompleted(Firmling firmling, Firmstunde firmstunde) {
+
+        FirmlingFirmstunde firmlingFirmstunde = firmlingFirmstundeRepository.findByFirmlingIdAndFirmsonntagId(firmling.getId(), firmstunde.getId());
+
+        if(firmlingFirmstunde == null) {
+            firmlingFirmstunde = new FirmlingFirmstunde(firmling, firmstunde, true);
+        }
         return firmlingFirmstundeRepository.save(firmlingFirmstunde);
+    }
+    public void deleteFirmstunde(Long id) {
+        firmstundeRepository.deleteById(id);
+    }
+
+    public Firmstunde findById(Long id) {
+        if(firmstundeRepository.findById(id).isPresent()) {
+            return firmstundeRepository.findById(id).get();
+        }
+        return null;
     }
 }

@@ -1,6 +1,7 @@
 package de.acksmi.firmapp.firmpass_backend_project.model.connections;
 
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
+import de.acksmi.firmapp.firmpass_backend_project.model.Firmsonntag;
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmstunde;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -12,16 +13,15 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@IdClass(FirmlingFirmstundeId.class)
 public class FirmlingFirmstunde {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
     @ManyToOne
     @JoinColumn(name = "firmling_id")
     private Firmling firmling;
 
+    @Id
     @ManyToOne
     @JoinColumn(name = "firmstunde_id")
     private Firmstunde firmstunde;

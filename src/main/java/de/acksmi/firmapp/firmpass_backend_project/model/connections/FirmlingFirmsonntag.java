@@ -12,16 +12,15 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@IdClass(FirmlingFirmsonntagId.class)
 public class FirmlingFirmsonntag {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
     @ManyToOne
     @JoinColumn(name = "firmling_id")
     private Firmling firmling;
 
+    @Id
     @ManyToOne
     @JoinColumn(name = "firmsonntag_id")
     private Firmsonntag firmsonntag;

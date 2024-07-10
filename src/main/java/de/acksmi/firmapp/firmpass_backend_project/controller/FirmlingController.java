@@ -34,8 +34,6 @@ public class FirmlingController {
     public ResponseEntity<FirmlingDTO> getFirmling(@PathVariable Long id) {
         FirmlingDTO firmlinge = firmlingService.convertToDTO(firmlingService.findById(id));
         return ResponseEntity.ok(firmlinge);
-
-
     }
 
     @PreAuthorize("hasRole('ROLE_USER')")
@@ -80,7 +78,6 @@ public class FirmlingController {
         return ResponseEntity.ok(firmling);
     }
 
-
     @PreAuthorize("hasRole('ROLE_USER')")
     @DeleteMapping("/deleteUser/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
@@ -88,4 +85,3 @@ public class FirmlingController {
         return ResponseEntity.noContent().build();
     }
 }
-
