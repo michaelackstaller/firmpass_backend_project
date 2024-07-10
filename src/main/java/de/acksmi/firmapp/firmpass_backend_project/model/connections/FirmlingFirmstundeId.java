@@ -2,7 +2,6 @@ package de.acksmi.firmapp.firmpass_backend_project.model.connections;
 
 import lombok.Getter;
 import lombok.Setter;
-
 import java.io.Serializable;
 import java.util.Objects;
 

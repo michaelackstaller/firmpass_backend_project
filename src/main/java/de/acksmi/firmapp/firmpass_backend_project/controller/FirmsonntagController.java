@@ -10,7 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/firmsonntag")
@@ -33,7 +36,7 @@ public class FirmsonntagController {
         return firmsonntagService.createFirmsonntag(firmsonntag);
     }
 
-    @PutMapping("/{firmlingId}/{firmsonntagId}/complete")
+    @PutMapping("/complete/{firmlingId}/{firmsonntagId}")
     public ResponseEntity<?> markAsCompleted(@PathVariable Long firmlingId, @PathVariable Long firmsonntagId) {
         FirmlingFirmsonntag firmlingFirmsonntag = firmlingFirmsonntagRepository.findByFirmlingIdAndFirmsonntagId(firmlingId, firmsonntagId);
         if (firmlingFirmsonntag != null) {
@@ -53,7 +56,7 @@ public class FirmsonntagController {
         return ResponseEntity.ok("Firmsonntag" + firmsonntag.getName() + " für Firmling " + firmling.getFirstName() + " als erledigt markiert!");
     }
 
-    @PutMapping("/{firmlingId}/{firmsonntagId}/uncomplete")
+    @PutMapping("/uncomplete/{firmlingId}/{firmsonntagId}")
     public ResponseEntity<?> markAsUnCompleted(@PathVariable Long firmlingId, @PathVariable Long firmsonntagId) {
         FirmlingFirmsonntag firmlingFirmsonntag = firmlingFirmsonntagRepository.findByFirmlingIdAndFirmsonntagId(firmlingId, firmsonntagId);
         if (firmlingFirmsonntag != null) {
@@ -65,7 +68,27 @@ public class FirmsonntagController {
     }
 
     @DeleteMapping("/{id}")
-    public void deleteFirmstunde(@PathVariable Long id) {
-        firmsonntagService.deleteFirmstunde(id);
+    public void deleteFirmsonntag(@PathVariable Long id) {
+        firmsonntagService.deleteFirmsonntag(id);
+    }
+
+    @GetMapping("/list/{firmlingId}")
+    public ResponseEntity<?> getFirmsonntageFromFirmling(@PathVariable Long firmlingId) {
+        Firmling firmling = firmlingService.findById(firmlingId);
+        if (firmling == null) {
+            return ResponseEntity.status(404).body("Firmling nicht gefunden");
+        }
+        List<Firmsonntag> allFirmsonntage =  firmsonntagService.getAllFirmsonntage();
+        List<FirmlingFirmsonntag> completedFirmsonntage = firmling.getFirmlingFirmsonntage();
+        Map<Long, Boolean> completedMap = completedFirmsonntage.stream()
+                .collect(Collectors.toMap(f -> f.getFirmsonntag().getId(), FirmlingFirmsonntag::isCompleted));
+        List<Map<String, Object>> response = allFirmsonntage.stream().map(firmsonntag -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("firmsonntagId", firmsonntag.getId());
+            map.put("firmsonntagName", firmsonntag.getName());
+            map.put("completed", completedMap.getOrDefault(firmsonntag.getId(), false));
+            return map;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(response);
     }
 }

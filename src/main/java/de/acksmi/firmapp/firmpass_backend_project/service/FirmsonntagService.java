@@ -45,7 +45,7 @@ public class FirmsonntagService {
         return firmlingFirmsonntagRepository.save(firmlingFirmsonntag);
     }
 
-    public void deleteFirmstunde(Long id) {
+    public void deleteFirmsonntag(Long id) {
         firmsonntagRepository.deleteById(id);
     }
 }

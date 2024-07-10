@@ -1,9 +1,7 @@
 package de.acksmi.firmapp.firmpass_backend_project.service;
 
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
-import de.acksmi.firmapp.firmpass_backend_project.model.Firmsonntag;
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmstunde;
-import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmsonntag;
 import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmstunde;
 import de.acksmi.firmapp.firmpass_backend_project.repository.FirmstundeRepository;
 import de.acksmi.firmapp.firmpass_backend_project.repository.FirmlingFirmstundeRepository;
@@ -31,7 +29,7 @@ public class FirmstundeService {
 
     public FirmlingFirmstunde markAsCompleted(Firmling firmling, Firmstunde firmstunde) {
 
-        FirmlingFirmstunde firmlingFirmstunde = firmlingFirmstundeRepository.findByFirmlingIdAndFirmsonntagId(firmling.getId(), firmstunde.getId());
+        FirmlingFirmstunde firmlingFirmstunde = firmlingFirmstundeRepository.findByFirmlingIdAndFirmstundeId(firmling.getId(), firmstunde.getId());
 
         if(firmlingFirmstunde == null) {
             firmlingFirmstunde = new FirmlingFirmstunde(firmling, firmstunde, true);

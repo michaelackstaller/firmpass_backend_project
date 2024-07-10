@@ -1,22 +1,19 @@
 package de.acksmi.firmapp.firmpass_backend_project.controller;
 
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
-import de.acksmi.firmapp.firmpass_backend_project.model.Firmsonntag;
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmstunde;
-import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmsonntag;
 import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmstunde;
-import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmstundeId;
-import de.acksmi.firmapp.firmpass_backend_project.repository.FirmlingFirmsonntagRepository;
 import de.acksmi.firmapp.firmpass_backend_project.repository.FirmlingFirmstundeRepository;
 import de.acksmi.firmapp.firmpass_backend_project.service.FirmlingService;
-import de.acksmi.firmapp.firmpass_backend_project.service.FirmsonntagService;
 import de.acksmi.firmapp.firmpass_backend_project.service.FirmstundeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/firmstunde")
@@ -39,9 +36,9 @@ public class FirmstundeController {
         return firmstundeService.createFirmstunde(firmstunde);
     }
 
-    @PutMapping("/{firmlingId}/{firmstundeId}/complete")
+    @PutMapping("/complete/{firmlingId}/{firmstundeId}")
     public ResponseEntity<?> markAsCompleted(@PathVariable Long firmlingId, @PathVariable Long firmstundeId) {
-        FirmlingFirmstunde firmlingFirmstunde = firmlingFirmstundeRepository.findByFirmlingIdAndFirmsonntagId(firmlingId, firmstundeId);
+        FirmlingFirmstunde firmlingFirmstunde = firmlingFirmstundeRepository.findByFirmlingIdAndFirmstundeId(firmlingId, firmstundeId);
         if (firmlingFirmstunde != null) {
             firmlingFirmstunde.setCompleted(true);
             firmlingFirmstundeRepository.save(firmlingFirmstunde);
@@ -56,12 +53,12 @@ public class FirmstundeController {
             return ResponseEntity.status(404).body("Firmstunde nicht gefunden");
         }
         firmstundeService.markAsCompleted(firmling, firmstunde);
-        return ResponseEntity.ok("Firmsonntag" + firmstunde.getName() + " für Firmling " + firmling.getFirstName() + " als erledigt markiert!");
+        return ResponseEntity.ok("Firmstunde" + firmstunde.getName() + " für Firmling " + firmling.getFirstName() + " als erledigt markiert!");
     }
 
-    @PutMapping("/{firmlingId}/{firmsonntagId}/uncomplete")
-    public ResponseEntity<?> markAsUnCompleted(@PathVariable Long firmlingId, @PathVariable Long firmsonntagId) {
-        FirmlingFirmstunde firmlingFirmstunde = firmlingFirmstundeRepository.findByFirmlingIdAndFirmsonntagId(firmlingId, firmsonntagId);
+    @PutMapping("/uncomplete/{firmlingId}/{firmstundeId}")
+    public ResponseEntity<?> markAsUnCompleted(@PathVariable Long firmlingId, @PathVariable Long firmstundeId) {
+        FirmlingFirmstunde firmlingFirmstunde = firmlingFirmstundeRepository.findByFirmlingIdAndFirmstundeId(firmlingId, firmstundeId);
         if (firmlingFirmstunde != null) {
             firmlingFirmstunde.setCompleted(false);
             firmlingFirmstundeRepository.save(firmlingFirmstunde);
@@ -73,5 +70,25 @@ public class FirmstundeController {
     @DeleteMapping("/{id}")
     public void deleteFirmstunde(@PathVariable Long id) {
         firmstundeService.deleteFirmstunde(id);
+    }
+
+    @GetMapping("/list/{firmlingId}")
+    public ResponseEntity<?> getFirmstundenForFirmling(@PathVariable Long firmlingId) {
+        Firmling firmling = firmlingService.findById(firmlingId);
+        if (firmling == null) {
+            return ResponseEntity.status(404).body("Firmling nicht gefunden");
+        }
+        List<Firmstunde> allFirmstunden = firmstundeService.getAllFirmstunden();
+        List<FirmlingFirmstunde> completedFirmstunden = firmling.getFirmlingFirmstunden();
+        Map<Long, Boolean> completedMap = completedFirmstunden.stream()
+                .collect(Collectors.toMap(f -> f.getFirmstunde().getId(), FirmlingFirmstunde::isCompleted));
+        List<Map<String, Object>> response = allFirmstunden.stream().map(firmstunde -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("firmstundeId", firmstunde.getId());
+            map.put("firmstundeName", firmstunde.getName());
+            map.put("completed", completedMap.getOrDefault(firmstunde.getId(), false));
+            return map;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(response);
     }
 }
