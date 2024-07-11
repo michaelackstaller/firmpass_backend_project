@@ -18,4 +18,5 @@ public class Firmstunde {
 
     private String name;
     private String content;
+    private int week; //KW in der die Firmstunden dieses Themas stattfinden.
 }

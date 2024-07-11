@@ -33,6 +33,8 @@ public class Firmling {
     private boolean ausflugDone;
     private boolean sozialeAktionDone;
     private int gottediensteDone;
+    private int stundenDone;
+    private int sonntageDone;
 
     @ElementCollection
     @CollectionTable(name = "firmling_available_time_slots", joinColumns = @JoinColumn(name = "firmling_id"))

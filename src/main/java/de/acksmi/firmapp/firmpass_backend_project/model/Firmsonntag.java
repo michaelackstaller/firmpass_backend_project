@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+
 @Entity
 @Table(name = "firmsonntag")
 @Data
@@ -18,4 +20,5 @@ public class Firmsonntag {
 
     private String name;
     private String content;
+    private LocalDate date; //Date an dem der Firmsonntag stattfindet
 }

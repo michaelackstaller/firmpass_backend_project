@@ -4,7 +4,9 @@ import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmstunde;
 import de.acksmi.firmapp.firmpass_backend_project.model.User;
 import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmsonntag;
+import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmsonntagId;
 import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmstunde;
+import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmstundeId;
 import de.acksmi.firmapp.firmpass_backend_project.model.dtos.FirmlingDTO;
 import de.acksmi.firmapp.firmpass_backend_project.repository.FirmlingFirmsonntagRepository;
 import de.acksmi.firmapp.firmpass_backend_project.repository.FirmlingFirmstundeRepository;
@@ -13,12 +15,14 @@ import de.acksmi.firmapp.firmpass_backend_project.service.FirmstundeService;
 import de.acksmi.firmapp.firmpass_backend_project.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @RestController
@@ -51,39 +55,56 @@ public class FirmlingController {
         return ResponseEntity.ok(firmlinge);
     }
 
+    @Async
     @PreAuthorize("hasRole('ROLE_USER')")
     @DeleteMapping("/deleteFirmling/{id}")
     public ResponseEntity<Void> deleteFirmling(@PathVariable Long id) {
         Firmling firmling = firmlingService.findById(id);
         if (firmling != null) {
-            // Löschen der abhängigen FirmlingFirmstunde Einträge
-            List<FirmlingFirmstunde> firmlingFirmstunden = firmling.getFirmlingFirmstunden();
-            for (FirmlingFirmstunde firmlingFirmstunde : firmlingFirmstunden) {
-                firmlingFirmstunde.setFirmling(null);
-                firmlingFirmstundeRepository.delete(firmlingFirmstunde);
+            try {
 
+                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                    try {
+                        Thread.sleep(300);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    User user = firmling.getUser();
+                    if (user != null) {
+                        user.setFirmling(null);
+                        userService.saveUser(user);
+                    }
+
+                });
+
+                // Löschen der abhängigen FirmlingFirmstunde Einträge
+                List<FirmlingFirmstunde> firmlingFirmstunden = firmling.getFirmlingFirmstunden();
+                System.out.println(firmling.getFirmlingFirmstunden().size());
+                for (FirmlingFirmstunde firmlingFirmstunde : firmlingFirmstunden) {
+                    firmlingFirmstundeRepository.deleteByFirmlingIdAndFirmstundeId(id,
+                            firmlingFirmstunde.getFirmstunde().getId());
+                }
+
+                // Löschen der abhängigen FirmlingFirmsonntag Einträge
+                List<FirmlingFirmsonntag> firmlingFirmsonntage = firmling.getFirmlingFirmsonntage();
+                System.out.println(firmling.getFirmlingFirmsonntage().size());
+                for (FirmlingFirmsonntag firmlingFirmsonntag : firmlingFirmsonntage) {
+                    firmlingFirmsonntagRepository.deleteByFirmlingIdAndFirmsonntagId(id,
+                            firmlingFirmsonntag.getFirmsonntag().getId());
+                }
+
+
+                future.join();
+                return ResponseEntity.noContent().build();
+
+            } catch (Exception e) {
+                System.out.println(" EXEPTIOIN " + e.getCause() + " " + e.getMessage() + " " + e.getLocalizedMessage());
+                return ResponseEntity.status(500).build();
             }
-            // Löschen der abhängigen FirmlingFirmsonntag Einträge
-            List<FirmlingFirmsonntag> firmlingFirmsonntage = firmling.getFirmlingFirmsonntage();
-            for (FirmlingFirmsonntag firmlingFirmsonntag : firmlingFirmsonntage) {
-                firmlingFirmsonntag.setFirmling(null);
-                //firmlingFirmsonntagRepository.delete(firmlingFirmsonntag);
-            }
-            User user = firmling.getUser();
-            firmling.setUser(null);
-            //firmlingService.saveFirmling(firmling); // Save changes to Firmling
-
-            if (user != null) {
-                user.setFirmling(null);
-                userService.saveUser(user); // Save changes to User
-            }
-
-           // firmlingService.deleteFirmling(id); // Lösche den Firmling
-
-            return ResponseEntity.noContent().build();
         }
         return ResponseEntity.status(404).build();
     }
+
 
     @PreAuthorize("hasRole('ROLE_USER')")
     @DeleteMapping("/deleteUser/{id}")
@@ -110,4 +131,77 @@ public class FirmlingController {
         }).collect(Collectors.toList());
         return ResponseEntity.ok(response);
     }
+
+    @PreAuthorize("hasRole('ROLE_USER')")
+    @PutMapping("/firmlinge/checkAusflug/{id}")
+    public ResponseEntity<Void> checkAusflug(@PathVariable Long id) {
+        Firmling firmling = firmlingService.findById(id);
+        if (firmling == null) {
+            return ResponseEntity.status(404).build();
+        }
+        firmling.setAusflugDone(true);
+        firmlingService.saveFirmling(firmling);
+        return ResponseEntity.ok().build();
+    }
+
+
+    @PreAuthorize("hasRole('ROLE_USER')")
+    @PutMapping("/firmlinge/uncheckAusflug/{id}")
+    public ResponseEntity<Void> uncheckAusflug(@PathVariable Long id) {
+        Firmling firmling = firmlingService.findById(id);
+        if (firmling == null) {
+            return ResponseEntity.status(404).build();
+        }
+        firmling.setAusflugDone(false);
+        firmlingService.saveFirmling(firmling);
+        return ResponseEntity.ok().build();
+    }
+
+    @PreAuthorize("hasRole('ROLE_USER')")
+    @PutMapping("/firmlinge/checkSozialeAktion/{id}")
+    public ResponseEntity<Void> checkSozialeAktion(@PathVariable Long id) {
+        Firmling firmling = firmlingService.findById(id);
+        if (firmling == null) {
+            return ResponseEntity.status(404).build();
+        }
+        firmling.setSozialeAktionDone(true);
+        firmlingService.saveFirmling(firmling);
+        return ResponseEntity.ok().build();
+    }
+
+    @PreAuthorize("hasRole('ROLE_USER')")
+    @PutMapping("/firmlinge/uncheckSozialeAktion/{id}")
+    public ResponseEntity<Void> uncheckSozialeAktion(@PathVariable Long id) {
+        Firmling firmling = firmlingService.findById(id);
+        if (firmling == null) {
+            return ResponseEntity.status(404).build();
+        }
+        firmling.setSozialeAktionDone(false);
+        firmlingService.saveFirmling(firmling);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/firmling/{id}")
+    public ResponseEntity<?> updateFirmling(@PathVariable Long id, @RequestBody FirmlingDTO firmlingDTO) {
+        Firmling firmling = firmlingService.findById(id);
+        if (firmling == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        firmling.setFirstName(firmlingDTO.getFirstName());
+        firmling.setLastName(firmlingDTO.getLastName());
+        firmling.setGender(firmlingDTO.getGender());
+        firmling.setBirthDate(firmlingDTO.getBirthDate());
+        firmling.setNutrition(firmlingDTO.getNutrition());
+        firmling.setAllergies(firmlingDTO.getAllergies());
+        firmling.setFirmgruppe(firmlingDTO.getFirmgruppe());
+        firmling.setAvailableTimeSlots(firmlingDTO.getAvailableTimeSlots());
+        firmling.setGroupPreferences(firmlingDTO.getGroupPreferences());
+        firmling.setFirmgruppe(firmlingDTO.getFirmgruppe());
+
+        firmlingService.saveFirmling(firmling);
+        return ResponseEntity.ok(firmling);
+    }
+
+
 }

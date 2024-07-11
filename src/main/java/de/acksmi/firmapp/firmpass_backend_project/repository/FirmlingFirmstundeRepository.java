@@ -1,15 +1,24 @@
 package de.acksmi.firmapp.firmpass_backend_project.repository;
 
+import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
 import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmstunde;
+import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmstundeId;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface FirmlingFirmstundeRepository extends JpaRepository<FirmlingFirmstunde, Long> {
+public interface FirmlingFirmstundeRepository extends JpaRepository<FirmlingFirmstunde, FirmlingFirmstundeId> {
 
     @Query("SELECT f FROM FirmlingFirmstunde f WHERE f.firmling.id = :firmlingId AND f.firmstunde.id = :firmstundeId")
     FirmlingFirmstunde findByFirmlingIdAndFirmstundeId(@Param("firmlingId") Long firmlingId, @Param("firmstundeId") Long firmstundeId);
 
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM FirmlingFirmstunde f WHERE f.firmling.id = :firmlingId AND f.firmstunde.id = :firmstundeId")
+    void deleteByFirmlingIdAndFirmstundeId(@Param("firmlingId") Long firmlingId, @Param("firmstundeId") Long firmstundeId);
 }
