@@ -3,16 +3,19 @@ package de.acksmi.firmapp.firmpass_backend_project.controller;
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmstunde;
 import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmstunde;
+import de.acksmi.firmapp.firmpass_backend_project.model.dtos.FirmlingDTO;
 import de.acksmi.firmapp.firmpass_backend_project.repository.FirmlingFirmstundeRepository;
 import de.acksmi.firmapp.firmpass_backend_project.service.FirmlingService;
 import de.acksmi.firmapp.firmpass_backend_project.service.FirmstundeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @RestController
@@ -34,6 +37,28 @@ public class FirmstundeController {
     @PostMapping
     public Firmstunde createFirmstunde(@RequestBody Firmstunde firmstunde) {
         return firmstundeService.createFirmstunde(firmstunde);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Firmstunde> updateFirmstunde(@PathVariable Long id, @RequestBody Firmstunde firmstundeDetails) {
+        Firmstunde firmstunde = firmstundeService.findById(id);
+        if (firmstunde == null) {
+            return ResponseEntity.status(404).body(null);
+        }
+        firmstunde.setName(firmstundeDetails.getName());
+        firmstunde.setContent(firmstundeDetails.getContent());
+        firmstunde.setWeek(firmstundeDetails.getWeek());
+        final Firmstunde updatedFirmstunde = firmstundeService.updateFirmstunde(firmstunde);
+        return ResponseEntity.ok(updatedFirmstunde);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Firmstunde> getFirmstunde(@PathVariable Long id) {
+        Firmstunde firmstunde = firmstundeService.findById(id);
+        if (firmstunde == null) {
+            return ResponseEntity.status(404).body(null);
+        }
+        return ResponseEntity.ok(firmstunde);
     }
 
     @PutMapping("/complete/{firmlingId}/{firmstundeId}")
@@ -61,15 +86,28 @@ public class FirmstundeController {
         FirmlingFirmstunde firmlingFirmstunde = firmlingFirmstundeRepository.findByFirmlingIdAndFirmstundeId(firmlingId, firmstundeId);
         if (firmlingFirmstunde != null) {
             firmlingFirmstunde.setCompleted(false);
-            firmlingFirmstundeRepository.save(firmlingFirmstunde);
-            return ResponseEntity.ok("Eintrag existierte bereits, wurde unerledigt markiert.");
+            firmlingFirmstundeRepository.deleteByFirmlingIdAndFirmstundeId(firmlingId, firmstundeId);
+            return ResponseEntity.ok().build();
         }
         return ResponseEntity.status(404).body("Eintrag existiert nicht");
     }
 
+    @Async
     @DeleteMapping("/{id}")
     public void deleteFirmstunde(@PathVariable Long id) {
-        firmstundeService.deleteFirmstunde(id);
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            firmstundeService.deleteFirmstunde(id);
+        });
+
+        for(FirmlingDTO firmling : firmlingService.findAllFirmlinge()) {
+            firmlingFirmstundeRepository.deleteByFirmlingIdAndFirmstundeId(firmling.getId(), id);
+        }
+        future.join();
     }
 
     @GetMapping("/list/{firmlingId}")

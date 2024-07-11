@@ -2,17 +2,21 @@ package de.acksmi.firmapp.firmpass_backend_project.controller;
 
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmsonntag;
+import de.acksmi.firmapp.firmpass_backend_project.model.Firmstunde;
 import de.acksmi.firmapp.firmpass_backend_project.model.connections.FirmlingFirmsonntag;
+import de.acksmi.firmapp.firmpass_backend_project.model.dtos.FirmlingDTO;
 import de.acksmi.firmapp.firmpass_backend_project.repository.FirmlingFirmsonntagRepository;
 import de.acksmi.firmapp.firmpass_backend_project.service.FirmlingService;
 import de.acksmi.firmapp.firmpass_backend_project.service.FirmsonntagService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @RestController
@@ -35,6 +39,29 @@ public class FirmsonntagController {
     public Firmsonntag createFirmsonntag(@RequestBody Firmsonntag firmsonntag) {
         return firmsonntagService.createFirmsonntag(firmsonntag);
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Firmsonntag> updateFirmsonntag(@PathVariable Long id, @RequestBody Firmsonntag firmsonntagDetails) {
+        Firmsonntag firmsonntag = firmsonntagService.findById(id);
+        if (firmsonntag == null) {
+            return ResponseEntity.status(404).body(null);
+        }
+        firmsonntag.setName(firmsonntagDetails.getName());
+        firmsonntag.setContent(firmsonntagDetails.getContent());
+        firmsonntag.setDate(firmsonntagDetails.getDate());
+        final Firmsonntag updatedFirmsonntag = firmsonntagService.updateFirmsonntag(firmsonntag);
+        return ResponseEntity.ok(updatedFirmsonntag);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Firmsonntag> getFirmsonntag(@PathVariable Long id) {
+        Firmsonntag firmsonntag = firmsonntagService.findById(id);
+        if (firmsonntag == null) {
+            return ResponseEntity.status(404).body(null);
+        }
+        return ResponseEntity.ok(firmsonntag);
+    }
+
 
     @PutMapping("/complete/{firmlingId}/{firmsonntagId}")
     public ResponseEntity<?> markAsCompleted(@PathVariable Long firmlingId, @PathVariable Long firmsonntagId) {
@@ -61,15 +88,29 @@ public class FirmsonntagController {
         FirmlingFirmsonntag firmlingFirmsonntag = firmlingFirmsonntagRepository.findByFirmlingIdAndFirmsonntagId(firmlingId, firmsonntagId);
         if (firmlingFirmsonntag != null) {
             firmlingFirmsonntag.setCompleted(false);
-            firmlingFirmsonntagRepository.save(firmlingFirmsonntag);
-            return ResponseEntity.ok("Eintrag existierte bereits, wurde unerledigt markiert.");
+            firmlingFirmsonntagRepository.deleteByFirmlingIdAndFirmsonntagId(firmlingId, firmsonntagId);
+            return ResponseEntity.ok().build();
         }
         return ResponseEntity.status(404).body("Eintrag existiert nicht");
     }
 
+    @Async
     @DeleteMapping("/{id}")
     public void deleteFirmsonntag(@PathVariable Long id) {
-        firmsonntagService.deleteFirmsonntag(id);
+
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            firmsonntagService.deleteFirmsonntag(id);
+        });
+
+        for(FirmlingDTO firmling : firmlingService.findAllFirmlinge()) {
+            firmlingFirmsonntagRepository.deleteByFirmlingIdAndFirmsonntagId(firmling.getId(), id);
+        }
+        future.join();
     }
 
     @GetMapping("/list/{firmlingId}")
@@ -78,7 +119,7 @@ public class FirmsonntagController {
         if (firmling == null) {
             return ResponseEntity.status(404).body("Firmling nicht gefunden");
         }
-        List<Firmsonntag> allFirmsonntage =  firmsonntagService.getAllFirmsonntage();
+        List<Firmsonntag> allFirmsonntage = firmsonntagService.getAllFirmsonntage();
         List<FirmlingFirmsonntag> completedFirmsonntage = firmling.getFirmlingFirmsonntage();
         Map<Long, Boolean> completedMap = completedFirmsonntage.stream()
                 .collect(Collectors.toMap(f -> f.getFirmsonntag().getId(), FirmlingFirmsonntag::isCompleted));

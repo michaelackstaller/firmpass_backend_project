@@ -27,15 +27,18 @@ public class FirmstundeService {
         return firmstundeRepository.save(firmstunde);
     }
 
+    public Firmstunde updateFirmstunde(Firmstunde firmstunde) {
+        return firmstundeRepository.save(firmstunde);
+    }
+
     public FirmlingFirmstunde markAsCompleted(Firmling firmling, Firmstunde firmstunde) {
-
         FirmlingFirmstunde firmlingFirmstunde = firmlingFirmstundeRepository.findByFirmlingIdAndFirmstundeId(firmling.getId(), firmstunde.getId());
-
         if(firmlingFirmstunde == null) {
             firmlingFirmstunde = new FirmlingFirmstunde(firmling, firmstunde, true);
         }
         return firmlingFirmstundeRepository.save(firmlingFirmstunde);
     }
+
     public void deleteFirmstunde(Long id) {
         firmstundeRepository.deleteById(id);
     }
