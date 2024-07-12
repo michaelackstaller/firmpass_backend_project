@@ -1,5 +1,6 @@
 package de.acksmi.firmapp.firmpass_backend_project.controller;
 
+import de.acksmi.firmapp.firmpass_backend_project.model.Firmgruppe;
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmling;
 import de.acksmi.firmapp.firmpass_backend_project.model.Firmstunde;
 import de.acksmi.firmapp.firmpass_backend_project.model.User;
@@ -53,6 +54,17 @@ public class FirmlingController {
     public ResponseEntity<FirmlingDTO> getFirmling(@PathVariable Long id) {
         FirmlingDTO firmlinge = firmlingService.convertToDTO(firmlingService.findById(id));
         return ResponseEntity.ok(firmlinge);
+    }
+
+    @PutMapping("/firmlinge/updateFirmgruppe/{id}/{group}")
+    public ResponseEntity<?> updateFirmlingFirmgruppe(@PathVariable Long id, @PathVariable String group) {
+        Firmling firmling = firmlingService.findById(id);
+        if (firmling == null) {
+            return ResponseEntity.notFound().build();
+        }
+        firmling.setFirmgruppe(Firmgruppe.valueOf(group));
+        firmlingService.saveFirmling(firmling);
+        return ResponseEntity.ok().build();
     }
 
     @Async
